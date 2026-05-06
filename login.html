@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - 蒙面畅聊</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .face-login-section {
+            margin-top: 1rem;
+            text-align: center;
+        }
+        .face-login-btn {
+            background: #4ECDC4;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .face-login-btn:hover {
+            background: #3dbdb5;
+        }
+        .face-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .face-modal.active {
+            display: flex;
+        }
+        .face-modal-content {
+            background: var(--background-card, #fff);
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+            max-width: 400px;
+        }
+        .face-modal-content video {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        .face-modal-content canvas {
+            display: none;
+        }
+        .face-btn-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+        .face-btn-group button {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .btn-capture {
+            background: #4ECDC4;
+            color: white;
+            border: none;
+        }
+        .btn-cancel {
+            background: #ccc;
+            border: none;
+        }
+    </style>
+</head>
+<body class="auth-page">
+    <div class="auth-container">
+        <div class="auth-header">
+            <h1>🎭 蒙面畅聊</h1>
+            <p>欢迎回来</p>
+        </div>
+
+        <form id="loginForm" class="auth-form">
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" id="username" name="username" required
+                       placeholder="请输入用户名" autocomplete="username">
+            </div>
+
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="password" name="password" required
+                       placeholder="请输入密码" autocomplete="current-password">
+            </div>
+
+            <div class="form-options">
+                <label class="checkbox">
+                    <input type="checkbox" id="rememberMe">
+                    <span>记住我</span>
+                </label>
+                <a href="#" class="forgot-password">忘记密码？</a>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full">登录</button>
+
+            <div class="auth-footer">
+                还没有账号？ <a href="{{ url_for('register') }}">立即注册</a>
+            </div>
+        </form>
+
+        <div class="auth-divider">
+            <span>或</span>
+        </div>
+
+        <!-- 人脸识别登录按钮 -->
+        <div class="face-login-section">
+            <button type="button" class="face-login-btn" id="faceLoginBtn">
+                👤 人脸识别登录
+            </button>
+            <div style="margin-top: 0.5rem; font-size: 0.85rem; color: #666;">
+                <a href="#" id="faceRegisterLink">注册人脸</a> | <a href="#" id="faceLoginLink">使用人脸登录</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 人脸识别弹窗 -->
+    <div class="face-modal" id="faceModal">
+        <div class="face-modal-content">
+            <h3 id="faceModalTitle">人脸识别登录</h3>
+            <video id="faceVideo" autoplay playsinline></video>
+            <canvas id="faceCanvas"></canvas>
+            <p id="faceStatus" style="color: #666; margin: 1rem 0;">请将脸部对准摄像头</p>
+            <div class="face-btn-group">
+                <button type="button" class="btn-capture" id="captureBtn">拍照验证</button>
+                <button type="button" class="btn-cancel" id="closeFaceModal">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const faceModal = document.getElementById('faceModal');
+        const faceVideo = document.getElementById('faceVideo');
+        const faceCanvas = document.getElementById('faceCanvas');
+        const captureBtn = document.getElementById('captureBtn');
+        const faceStatus = document.getElementById('faceStatus');
+        let currentMode = 'login'; // login or register
+        let stream = null;
+
+        // 打开人脸弹窗
+        async function openFaceModal(mode) {
+            currentMode = mode;
+            document.getElementById('faceModalTitle').textContent = mode === 'login' ? '人脸识别登录' : '人脸注册';
+            captureBtn.textContent = mode === 'login' ? '拍照验证' : '拍照注册';
+            faceModal.classList.add('active');
+
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                faceVideo.srcObject = stream;
+            } catch (err) {
+                faceStatus.textContent = '无法访问摄像头: ' + err.message;
+            }
+        }
+
+        // 关闭人脸弹窗
+        function closeFaceModal() {
+            faceModal.classList.remove('active');
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+        }
+
+        // 拍照并处理
+        async function captureAndProcess() {
+            faceCanvas.width = faceVideo.videoWidth;
+            faceCanvas.height = faceVideo.videoHeight;
+            const ctx = faceCanvas.getContext('2d');
+            ctx.drawImage(faceVideo, 0, 0);
+
+            const imageData = faceCanvas.toDataURL('image/jpeg');
+            faceStatus.textContent = '处理中...';
+
+            if (currentMode === 'login') {
+                const username = document.getElementById('username').value;
+                if (!username) {
+                    faceStatus.textContent = '请先输入用户名';
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/face/verify', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ image: imageData, username: username })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        localStorage.setItem('user', JSON.stringify(result.user));
+                        closeFaceModal();
+                        window.location.href = result.redirect;
+                    } else {
+                        faceStatus.textContent = result.message;
+                    }
+                } catch (err) {
+                    faceStatus.textContent = '验证失败';
+                }
+            } else {
+                // 注册人脸 - 需要用户名和密码验证
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+
+                if (!username || !password) {
+                    faceStatus.textContent = '注册人脸需要先输入用户名和密码';
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/face/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            image: imageData,
+                            username: username,
+                            password: password
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        faceStatus.textContent = '注册成功！';
+                        setTimeout(() => closeFaceModal(), 1500);
+                    } else {
+                        faceStatus.textContent = result.message;
+                    }
+                } catch (err) {
+                    faceStatus.textContent = '注册失败';
+                }
+            }
+        }
+
+        // 事件绑定
+        document.getElementById('faceLoginBtn').addEventListener('click', () => {
+            if (!document.getElementById('username').value) {
+                alert('请先输入用户名');
+                return;
+            }
+            openFaceModal('login');
+        });
+
+        document.getElementById('faceRegisterLink').addEventListener('click', (e) => {
+            e.preventDefault();
+            openFaceModal('register');
+        });
+
+        document.getElementById('faceLoginLink').addEventListener('click', (e) => {
+            e.preventDefault();
+            if (!document.getElementById('username').value) {
+                alert('请先输入用户名');
+                return;
+            }
+            openFaceModal('login');
+        });
+
+        captureBtn.addEventListener('click', captureAndProcess);
+        document.getElementById('closeFaceModal').addEventListener('click', closeFaceModal);
+    </script>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const data = {
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value
+            };
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // 保存用户信息
+                    localStorage.setItem('user', JSON.stringify(result.user));
+                    window.location.href = result.redirect;
+                } else {
+                    alert(result.message);
+                }
+            } catch (error) {
+                alert('登录失败，请稍后重试');
+            }
+        });
+
+        // 回车登录
+        document.getElementById('password').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+            }
+        });
+    </script>
+</body>
+</html>
