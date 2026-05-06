@@ -1,0 +1,18 @@
+# 蒙面畅聊 - 依赖包
+Flask==3.0.0
+Flask-SocketIO==5.3.6
+Flask-SQLAlchemy==3.1.1
+Flask-Login==0.6.3
+python-socketio==5.10.0
+eventlet==0.33.3
+python-engineio==4.7.1
+Werkzeug==3.0.1
+speechrecognition==3.10.1
+pydub==0.25.1
+openai-whisper==20231117
+PyJWT==2.8.0
+qrcode==7.4.2
+pillow==10.1.0
+requests==2.31.0
+opencv-python==4.13.0.92
+numpy==1.26.0
