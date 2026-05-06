@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>蒙面畅聊 - 主界面</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body class="main-page">
+    <!-- 侧边栏 -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>🎭 蒙面畅聊</h1>
+            <div class="user-mini-profile">
+                <img src="{{ user.avatar_url }}" alt="avatar" class="user-avatar">
+                <span class="user-name">{{ user.nickname }}</span>
+                {% if user.is_vip %}
+                <span class="vip-badge">VIP</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" data-tab="match">
+                <span class="nav-icon">🎯</span>
+                <span>随机匹配</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="friends">
+                <span class="nav-icon">👥</span>
+                <span>好友列表</span>
+                <span class="nav-badge" id="unreadBadge"></span>
+            </a>
+            <a href="#" class="nav-item" data-tab="chatrooms">
+                <span class="nav-icon">🏠</span>
+                <span>聊天室</span>
+                <span class="nav-badge" id="chatroomsBadge"></span>
+            </a>
+            <a href="#" class="nav-item" data-tab="square">
+                <span class="nav-icon">📰</span>
+                <span>动态广场</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="profile">
+                <span class="nav-icon">⚙️</span>
+                <span>个人中心</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="points-display">
+                <span>💎 {{ user.points }} 积分</span>
+            </div>
+            <a href="javascript:void(0)" class="btn-logout" onclick="handleLogout()">退出登录</a>
+        </div>
+    </aside>
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+        <!-- 随机匹配页面 -->
+        <div class="tab-content active" id="tab-match">
+            <div class="match-container">
+                <div class="match-header">
+                    <h2>随机匹配</h2>
+                    <p>点击下方按钮，随机匹配一位在线用户开始聊天</p>
+                </div>
+
+                <div class="match-options">
+                    <div class="gender-filter">
+                        <span>优先匹配性别：</span>
+                        <button class="filter-btn active" data-gender="">全部</button>
+                        <button class="filter-btn" data-gender="male">男生</button>
+                        <button class="filter-btn" data-gender="female">女生</button>
+                    </div>
+                </div>
+
+                <div class="match-action">
+                    <button class="btn btn-primary btn-large" id="startMatchBtn">
+                        <span class="btn-icon">🎯</span>
+                        开始随机匹配
+                    </button>
+                </div>
+
+                <div class="match-status" id="matchStatus" style="display: none;">
+                    <div class="loading-spinner"></div>
+                    <p>正在寻找志同道合的人...</p>
+                </div>
+
+                <div class="match-result" id="matchResult" style="display: none;">
+                    <!-- 匹配结果将显示在这里 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 好友列表页面 -->
+        <div class="tab-content" id="tab-friends">
+            <div class="friends-list-container">
+                <div class="section-header">
+                    <h2>好友列表</h2>
+                    <p>你的好友和聊天记录</p>
+                </div>
+                <div class="friends-list" id="friendsList">
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 聊天室列表页面 -->
+        <div class="tab-content" id="tab-chatrooms">
+            <div class="chatrooms-container">
+                <div class="section-header">
+                    <h2>聊天室</h2>
+                    <button class="btn btn-primary" id="createRoomBtn">创建聊天室</button>
+                </div>
+                <div class="chatrooms-list" id="chatroomsList">
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 动态广场页面 -->
+        <div class="tab-content" id="tab-square">
+            <div class="square-container">
+                <div class="section-header">
+                    <h2>动态广场</h2>
+                    <button class="btn btn-primary" id="createPostBtn">发布动态</button>
+                </div>
+                <div class="posts-list" id="postsList">
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 个人中心页面 -->
+        <div class="tab-content" id="tab-profile">
+            <div class="profile-container">
+                <div class="section-header">
+                    <h2>个人中心</h2>
+                </div>
+                <div class="profile-content" id="profileContent">
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 聊天窗口 -->
+    <div class="chat-window" id="chatWindow" style="display: none;">
+        <!-- 拖动手柄 -->
+        <div class="chat-resize-handle" id="chatResizeHandle"></div>
+        <div class="chat-header">
+            <div class="chat-user-info">
+                <img src="" alt="" class="chat-user-avatar" id="chatUserAvatar">
+                <div class="chat-user-details">
+                    <span class="chat-user-name" id="chatUserName"></span>
+                    <span class="chat-user-status" id="chatUserStatus"></span>
+                </div>
+            </div>
+            <div class="chat-header-actions">
+                <button class="chat-action-btn" id="voiceCallBtn" title="语音通话" style="display: none;">
+                    📞
+                </button>
+                <button class="chat-action-btn" id="videoCallBtn" title="视频通话" style="display: none;">
+                    📹
+                </button>
+                <button class="chat-action-btn" id="closeChatBtn" title="关闭聊天">
+                    ✕
+                </button>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <!-- 消息将显示在这里 -->
+        </div>
+
+        <div class="chat-input-area">
+            <div class="chat-progress" id="chatProgress" style="display: none;">
+                <div class="progress-item" data-feature="voice_message">
+                    <span class="progress-icon">🎤</span>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0%;"></div>
+                    </div>
+                    <span class="progress-label">语音留言</span>
+                </div>
+                <div class="progress-item" data-feature="voice_call">
+                    <span class="progress-icon">📞</span>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0%;"></div>
+                    </div>
+                    <span class="progress-label">语音通话</span>
+                </div>
+                <div class="progress-item" data-feature="video_call">
+                    <span class="progress-icon">📹</span>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0%;"></div>
+                    </div>
+                    <span class="progress-label">视频通话</span>
+                </div>
+            </div>
+
+            <div class="chat-actions">
+                <button class="chat-action-btn" id="voiceMessageBtn" title="语音消息" style="display: none;">
+                    🎤
+                </button>
+                <button class="chat-action-btn emoji-btn" id="emojiBtn" title="表情">
+                    😊
+                </button>
+            </div>
+
+            <div class="chat-input-row">
+                <textarea id="chatInput" placeholder="输入消息..." rows="1"></textarea>
+                <button class="btn-send" id="sendBtn">发送</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 聊天室群聊窗口 -->
+    <div class="chat-window" id="groupChatWindow" style="display: none;">
+        <div class="chat-header">
+            <div class="chat-user-info">
+                <span class="chat-group-icon">👥</span>
+                <div class="chat-user-details">
+                    <span class="chat-user-name" id="groupChatName">聊天室</span>
+                    <span class="chat-user-status" id="groupChatStatus">群聊</span>
+                </div>
+            </div>
+            <div class="chat-header-actions">
+                <button class="chat-action-btn" id="closeGroupChatBtn">✕</button>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="groupChatMessages">
+            <!-- 聊天室消息 -->
+        </div>
+
+        <div class="chat-input-section">
+            <div class="chat-input-row">
+                <textarea id="groupChatInput" placeholder="输入消息..." rows="1"></textarea>
+                <button class="btn-send" id="groupSendBtn">发送</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 发帖弹窗 -->
+    <div class="modal" id="postModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>发布动态</h3>
+                <button class="modal-close" id="closePostModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <form id="postForm">
+                    <div class="form-group">
+                        <textarea id="postContent" placeholder="分享你的想法..." rows="4" required></textarea>
+                    </div>
+                    <div class="form-options">
+                        <label class="checkbox">
+                            <input type="checkbox" id="postAnonymous" checked>
+                            <span>匿名发布</span>
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-primary">发布</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 创建聊天室弹窗 -->
+    <div class="modal" id="roomModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>创建聊天室</h3>
+                <button class="modal-close" id="closeRoomModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <form id="roomForm">
+                    <div class="form-group">
+                        <label>聊天室名称</label>
+                        <input type="text" id="roomName" required placeholder="请输入聊天室名称">
+                    </div>
+                    <div class="form-group">
+                        <label>聊天室简介</label>
+                        <textarea id="roomDescription" rows="3" placeholder="介绍一下聊天室..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>最大人数</label>
+                        <input type="number" id="roomMaxMembers" value="100" min="2" max="500">
+                    </div>
+                    <button type="submit" class="btn btn-primary">创建</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 解锁功能弹窗 -->
+    <div class="modal" id="unlockModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>解锁功能</h3>
+                <button class="modal-close" id="closeUnlockModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="unlock-info">
+                    <p id="unlockMessage"></p>
+                    <div class="unlock-cost">
+                        <span>所需积分：</span>
+                        <span class="points-amount" id="unlockPoints"></span>
+                    </div>
+                </div>
+                <div class="unlock-actions">
+                    <button class="btn btn-primary" id="confirmUnlockBtn">确认解锁</button>
+                    <button class="btn btn-secondary" id="cancelUnlockBtn">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 语音通话界面 -->
+    <div class="call-overlay" id="callOverlay" style="display: none;">
+        <div class="call-container">
+            <div class="call-status" id="callStatus">正在呼叫...</div>
+            <div class="call-avatar">
+                <img src="" alt="" id="callAvatar">
+            </div>
+            <div class="call-name" id="callName"></div>
+            <div class="call-duration" id="callDuration">00:00</div>
+            <div class="call-actions">
+                <button class="call-btn call-btn-mute" id="callMuteBtn" title="静音">
+                    <span id="muteIcon">🎤</span>
+                </button>
+                <button class="call-btn call-btn-end" id="callEndBtn" title="挂断">
+                    📞
+                </button>
+                <button class="call-btn call-btn-speaker" id="callSpeakerBtn" title="扬声器">
+                    🔊
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 视频通话界面 -->
+    <div class="video-call-overlay" id="videoCallOverlay" style="display: none;">
+        <div class="video-call-container">
+            <!-- 远程视频 -->
+            <video id="remoteVideo" class="remote-video" autoplay playsinline></video>
+
+            <!-- 本地视频（画中画） -->
+            <video id="localVideo" class="local-video" autoplay playsinline muted></video>
+
+            <!-- 通话信息 -->
+            <div class="video-call-info">
+                <div class="video-call-status" id="videoCallStatus">正在呼叫...</div>
+                <div class="video-call-name" id="videoCallName"></div>
+                <div class="video-call-duration" id="videoCallDuration">00:00</div>
+            </div>
+
+            <!-- 控制按钮 -->
+            <div class="video-call-actions">
+                <button class="video-call-btn video-btn-mute" id="videoMuteBtn" title="静音">
+                    <span id="videoMuteIcon">🎤</span>
+                </button>
+                <button class="video-call-btn video-btn-camera" id="videoCameraBtn" title="摄像头">
+                    <span id="videoCameraIcon">📹</span>
+                </button>
+                <button class="video-call-btn video-btn-end" id="videoEndBtn" title="挂断">
+                    📞
+                </button>
+                <button class="video-call-btn video-btn-speaker" id="videoSpeakerBtn" title="扬声器">
+                    🔊
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通话来电弹窗 -->
+    <div class="incoming-call-modal" id="incomingCallModal" style="display: none;">
+        <div class="incoming-call-content">
+            <div class="incoming-call-header">
+                <span class="incoming-call-icon">📞</span>
+                <h3>来电</h3>
+            </div>
+            <div class="incoming-call-info">
+                <img src="" alt="" class="incoming-call-avatar" id="incomingCallAvatar">
+                <div class="incoming-call-name" id="incomingCallName"></div>
+                <div class="incoming-call-type" id="incomingCallType">语音通话</div>
+            </div>
+            <div class="incoming-call-actions">
+                <button class="call-btn call-btn-reject" id="rejectCallBtn">拒绝</button>
+                <button class="call-btn call-btn-accept" id="acceptCallBtn">接听</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
